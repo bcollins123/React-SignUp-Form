@@ -1,0 +1,18 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.rows {
+  display: flex;
+}
+
+.form-element {
+  margin: 8px 8px 0 0;
+}
+
+.btn-signup {
+  width: 100%;
+}
