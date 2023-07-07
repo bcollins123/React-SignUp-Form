@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { fetchData } from "../utils";
-import { API_URL } from "../utils/constants";
+import React, { useState } from "react";
+import useFetchData from "../hooks/useFetchData";
+import { getCityAPIURL, getStateAPIURL } from "../utils";
 
 interface SignUpFormState {
   firstName: string;
@@ -28,14 +28,15 @@ interface CityData {
   city_name: string;
 }
 
-interface StatesData {
-  [state_name: string]: CityData[];
-}
-
 const SignUpForm: React.FC = () => {
   const [formState, setFormState] = useState(initialState);
-  const [states, setStates] = useState<StateData[]>([]);
-  const [statesData, setStatesData] = useState<StatesData>({});
+  const [errors, setErrors] = useState<Partial<SignUpFormState>>({});
+  const { data: states, isLoading: isStateLoading } = useFetchData<StateData[]>(
+    getStateAPIURL("United States")
+  );
+  const { data: cities, isLoading: isCityLoading } = useFetchData<CityData[]>(
+    getCityAPIURL(formState.state)
+  );
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -44,39 +45,33 @@ const SignUpForm: React.FC = () => {
     setFormState((prevState) => ({ ...prevState, [name]: value }));
   };
 
-  const getStateList = async () => {
-    const res = await fetchData(`${API_URL}/states/United States`);
-    setStates(res);
-  };
-
-  const getCityList = async (stateName: string) => {
-    if (!statesData[stateName]) {
-      const res = await fetchData(
-        `https://www.universal-tutorial.com/api/cities/${stateName}`
-      );
-      setStatesData({
-        ...statesData,
-        [stateName]: res,
-      });
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    const validationErrors: Partial<SignUpFormState> = {};
+
+    Object.keys(formState).forEach((key) => {
+      if (!formState[key as keyof SignUpFormState]) {
+        validationErrors[key as keyof SignUpFormState] =
+          "This field is required";
+      }
+    });
+
+    if (!/\S+@\S+\.\S+/.test(formState.email)) {
+      validationErrors.email = "Invalid email address";
+    }
+
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
     console.log(formState);
   };
 
   const handleStateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { value } = e.target;
     setFormState((prevState) => ({ ...prevState, state: value, city: "" }));
-    if (value) {
-      getCityList(value);
-    }
   };
-
-  useEffect(() => {
-    getStateList();
-  }, []);
 
   return (
     <div>
@@ -90,8 +85,10 @@ const SignUpForm: React.FC = () => {
               placeholder="First Name*"
               value={formState.firstName}
               onChange={handleChange}
-              required
             />
+            {errors.firstName && (
+              <p className="validation-error">{errors.firstName}</p>
+            )}
           </div>
           <div className="form-element">
             <input
@@ -100,8 +97,10 @@ const SignUpForm: React.FC = () => {
               placeholder="Last Name*"
               value={formState.lastName}
               onChange={handleChange}
-              required
             />
+            {errors.lastName && (
+              <p className="validation-error">{errors.lastName}</p>
+            )}
           </div>
         </div>
         <div className="form-element">
@@ -109,17 +108,21 @@ const SignUpForm: React.FC = () => {
             name="state"
             value={formState.state}
             onChange={handleStateChange}
-            disabled={!states?.length}
-            required
+            disabled={isStateLoading}
           >
             <option value="">Select a state</option>
-            {states?.length &&
-              states.map((state) => (
-                <option key={state.state_name} value={state.state_name}>
+            {!isStateLoading &&
+              states?.length &&
+              states.map((state, index) => (
+                <option
+                  key={`${state.state_name}-${index}`}
+                  value={state.state_name}
+                >
                   {state.state_name}
                 </option>
               ))}
           </select>
+          {errors.state && <p className="validation-error">{errors.state}</p>}
         </div>
         {formState.state && (
           <div className="form-element">
@@ -127,28 +130,32 @@ const SignUpForm: React.FC = () => {
               name="city"
               value={formState.city}
               onChange={handleChange}
-              disabled={!statesData[formState.state]}
-              required
+              disabled={isCityLoading}
             >
               <option value="">Select a city</option>
-              {statesData[formState.state] &&
-                statesData[formState.state].map((city) => (
-                  <option key={city.city_name} value={city.city_name}>
+              {!isCityLoading &&
+                cities?.length &&
+                cities.map((city, index) => (
+                  <option
+                    key={`${city.city_name}-${index}`}
+                    value={city.city_name}
+                  >
                     {city.city_name}
                   </option>
                 ))}
             </select>
+            {errors.city && <p className="validation-error">{errors.city}</p>}
           </div>
         )}
         <div className="form-element">
           <input
-            type="email"
+            type="text"
             name="email"
             placeholder="Email*"
             value={formState.email}
             onChange={handleChange}
-            required
           />
+          {errors.email && <p className="validation-error">{errors.email}</p>}
         </div>
         <div className="form-element">
           <input
@@ -157,11 +164,17 @@ const SignUpForm: React.FC = () => {
             placeholder="Password*"
             value={formState.password}
             onChange={handleChange}
-            required
           />
+          {errors.password && (
+            <p className="validation-error">{errors.password}</p>
+          )}
         </div>
         <div className="form-element">
-          <button type="submit" className="btn-signup">
+          <button
+            type="submit"
+            className="btn-signup"
+            disabled={isStateLoading || isCityLoading}
+          >
             Sign Up
           </button>
         </div>

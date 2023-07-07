@@ -50,24 +50,16 @@ export const getAccessToken = async () => {
   }
 };
 
-export const fetchData = async (url: string) => {
-  try {
-    let authToken = getCookie("auth_token");
-    if (!authToken) {
-      authToken = await getAccessToken();
-    }
-    const response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error("Failed to fetch data");
-    }
-    const jsonData = await response.json();
-    return jsonData;
-  } catch (error: any) {
-    console.log(error.message);
+export const getStateAPIURL = (countryName: string) => {
+  if (countryName) {
+    return `${API_URL}/states/${countryName}`;
   }
+  return '';
+};
+
+export const getCityAPIURL = (stateName: string) => {
+  if (stateName) {
+    return `${API_URL}/cities/${stateName}`;
+  }
+  return '';
 };
